@@ -104,7 +104,12 @@ def mine():
 
 @app.route('/transactions/new',methods=['POST'])
 def new_transaction():
-    return "We'll add a new transaction"
+    values = request.get_json()
+
+    #Check that the required fields are in the Post'ed data
+    required = ['sender','recipient','amount']
+    if not all(k in values for k in required):
+        return 'missing values', 400
 
 @app.route('/chain',methods=['GET'])
 def full_chain():
