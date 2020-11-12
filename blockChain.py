@@ -3,7 +3,7 @@ import json
 from time import time
 from uuid import uuid4
 
-from flask import Flask
+from flask import Flask,jsonify,request
 
 class Blockchain(object):
     def __init__(self):
@@ -63,6 +63,7 @@ class Blockchain(object):
         return self.chain[-1];
 
     def proof_of_work(self,last_proof):
+
         """
             Simple Proof of work Algorithms:
                 - Find a number p' such that hash(pp) contains leading 4 zeroes, where p is the previous p'
@@ -70,6 +71,7 @@ class Blockchain(object):
                 :param last_proof: <int>
                 :return: <int>
         """
+
         proof = 0;
         while self.valid_proof(last_proof,proof) is False:
             proof += 1
@@ -77,7 +79,7 @@ class Blockchain(object):
         return proof
 
     @staticmethod
-    def valid_proof(las_proof, proof):
+    def valid_proof(last_proof, proof):
         """
             Validates the Proof: Does hash(last_proof,proof) contain 4 leading zeroes
             :param last_proof: <int> Previous proof
@@ -100,7 +102,30 @@ blockchain = Blockchain()
 
 @app.route('/mine',methods=['GET'])
 def mine():
-    return "well mine a new block";
+    #we run the proof of work algorithm to get the next proof.
+    last_block = blockchain.last_block
+    last_proof = last_block['proof']
+    proof = blockchain.proof_of_work(last_proof);
+
+    #we must recieve a reward for finding the proof.
+    # the sender is '0' to signify the this node has mined a new coing
+    blockchain.new_transaction(
+    sender="0",
+    recipient=node_identifier,
+    amount = 1
+    )
+    #Forge the new Block by adding it to the chain
+    previous_hash = blockchain.hash(last_block)
+    block = blockchain.new_block(proof,previous_hash)
+
+    response ={
+        'message':'New Block Forged',
+        'index':block['index'],
+        'transactions':block['transactions'],
+        'proof':block['proof'],
+        'previous_hash': block['previous_hash']
+    }
+    return jsonify(response), 200
 
 @app.route('/transactions/new',methods=['POST'])
 def new_transaction():
@@ -110,6 +135,12 @@ def new_transaction():
     required = ['sender','recipient','amount']
     if not all(k in values for k in required):
         return 'missing values', 400
+
+    #create a new Transaction
+    index = blockchain.new_transaction(values['sender'],values['recipient'],values['amount'])
+
+    response ={'message': f'Transaction will be added to Block {index}'}
+    return jsonify(response), 201
 
 @app.route('/chain',methods=['GET'])
 def full_chain():
